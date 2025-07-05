@@ -28,6 +28,10 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://unpkg.com/geotiff@1.0.0-beta.6/dist/geotiff.browser.min.js"></script>
   <script src="https://unpkg.com/georaster@1.6.2/dist/georaster.browser.min.js"></script>
+  <script>
+    // georaster は georaster.browser.min.js により window.georaster としてロードされる
+    const parseGeoraster = window.georaster;
+  </script>
   <script src="https://unpkg.com/georaster-layer-for-leaflet@3.0.0/dist/georaster-layer-for-leaflet.browser.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
@@ -65,14 +69,14 @@
       if (!species || !source || !author) return alert("Please fill in all fields.");
 
       const inputGeojson = drawnItems.toGeoJSON();
-
       const intersecting = [];
+
       if (baseGeojson) {
         baseGeojson.eachLayer(layer => {
           const baseFeature = layer.toGeoJSON();
           inputGeojson.features.forEach(f => {
-            if (turf.intersect(baseFeature, f)) {
-              const intersected = turf.intersect(baseFeature, f);
+            const intersected = turf.intersect(baseFeature, f);
+            if (intersected) {
               intersected.properties = {
                 Species_name: species,
                 Source_info: source,
@@ -109,11 +113,12 @@
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await georaster(arrayBuffer); // ✅ 正しい呼び出し
+        const raster = await parseGeoraster(arrayBuffer);
+
         if (georasterLayer) map.removeLayer(georasterLayer);
 
         georasterLayer = new GeoRasterLayer({
-          georaster: result,
+          georaster: raster,
           opacity: 0.7,
           pixelValuesToColorFn: val => val === null ? null : `rgba(0, 0, 255, ${val / 255})`
         });

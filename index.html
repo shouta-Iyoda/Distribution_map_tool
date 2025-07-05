@@ -1,155 +1,131 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>分布図交差抽出ツール</title>
+  <meta charset="utf-8">
+  <title>Distribution Map Tool with GeoTIFF Overlay</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
   <style>
-    body { margin: 0; font-family: sans-serif; }
-    #map { height: 85vh; }
-    #controls {
-      padding: 10px;
-      background: #f0f0f0;
-      border-bottom: 1px solid #ccc;
-    }
-    input[type="text"] {
-      width: 220px;
-      margin-right: 10px;
-      margin-bottom: 5px;
-    }
-    label {
-      font-size: 0.9em;
-      margin-right: 5px;
-    }
-    button {
-      margin-top: 5px;
-    }
+    #map { height: 90vh; width: 100%; }
+    #controls { padding: 10px; }
+    input[type="text"] { margin-right: 10px; }
   </style>
 </head>
 <body>
-
-<div id="controls">
-  <div>
-    <label>種名:</label>
-    <input type="text" id="speciesInput" placeholder="例：Plestiodon japonicus" />
-    <label>出典:</label>
-    <input type="text" id="sourceInput" placeholder="例：Smith et al. 2021" />
-    <label>作成者:</label>
-    <input type="text" id="authorInput" placeholder="例：Shouta Iyoda" />
+  <div id="controls">
+    <input type="file" id="geotiffUpload" accept=".tif,.tiff" />
+    <label><input type="checkbox" id="toggleLayer" checked> Show GeoTIFF</label>
+    <input type="text" id="species" placeholder="Species Name" required>
+    <input type="text" id="source" placeholder="Source Info" required>
+    <input type="text" id="author" placeholder="Author" required>
+    <button id="download">Download GeoJSON</button>
   </div>
-  <button id="extractBtn">交差抽出＆ダウンロード</button>
-</div>
+  <div id="map"></div>
 
-<div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/geotiff@1.0.0-beta.6/dist/geotiff.browser.min.js"></script>
+  <script src="https://unpkg.com/georaster@1.6.2/dist/georaster.browser.min.js"></script>
+  <script src="https://unpkg.com/georaster-layer-for-leaflet@3.0.0/dist/georaster-layer-for-leaflet.browser.min.js"></script>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
-<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script>
+    const map = L.map("map").setView([35, 135], 5);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
 
-<script>
-  const map = L.map('map').setView([36.2048, 138.2529], 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+    let drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
 
-  const drawnItems = new L.FeatureGroup();
-  map.addLayer(drawnItems);
+    let baseGeojson;
+    fetch("Jap_Ken_area_filt_dissolve_0002.geojson")
+      .then(res => res.json())
+      .then(data => {
+        baseGeojson = L.geoJSON(data, {
+          style: { color: "gray", weight: 1, fillOpacity: 0.1 }
+        }).addTo(map);
+      });
 
-  const drawControl = new L.Control.Draw({
-    edit: { featureGroup: drawnItems },
-    draw: {
-      polygon: true,
-      polyline: false,
-      rectangle: false,
-      circle: false,
-      marker: false,
-      circlemarker: false
-    }
-  });
-  map.addControl(drawControl);
+    new L.Control.Draw({
+      edit: { featureGroup: drawnItems },
+      draw: { polygon: true, polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false }
+    }).addTo(map);
 
-  map.on('draw:created', function (e) {
-    drawnItems.addLayer(e.layer);
-  });
-
-  let kenData = null;
-
-  fetch("Jap_Ken_area_filt_dissolve_0002.geojson")
-    .then(res => res.json())
-    .then(data => {
-      kenData = data;
-      L.geoJSON(kenData, {
-        style: { color: "#999", weight: 1, fillOpacity: 0.1 }
-      }).addTo(map);
+    map.on(L.Draw.Event.CREATED, function (event) {
+      drawnItems.addLayer(event.layer);
     });
 
-  document.getElementById('extractBtn').addEventListener('click', function () {
-    const species = document.getElementById('speciesInput').value.trim();
-    const source = document.getElementById('sourceInput').value.trim();
-    const author = document.getElementById('authorInput').value.trim();
-    const today = new Date().toISOString().split('T')[0];
+    document.getElementById("download").addEventListener("click", function () {
+      const species = document.getElementById("species").value;
+      const source = document.getElementById("source").value;
+      const author = document.getElementById("author").value;
+      if (!species || !source || !author) return alert("Please fill in all fields.");
 
-    if (!species || !source || !author) {
-      alert("種名、出典、作成者のすべてを入力してください。");
-      return;
-    }
+      const inputGeojson = drawnItems.toGeoJSON();
 
-    if (!kenData) {
-      alert("都道府県データがまだ読み込まれていません。");
-      return;
-    }
-
-    const userPolygons = [];
-    drawnItems.eachLayer(layer => {
-      userPolygons.push(layer.toGeoJSON());
-    });
-
-    if (userPolygons.length === 0) {
-      alert("ポリゴンを描いてください。");
-      return;
-    }
-
-    const intersects = [];
-
-    for (const ken of kenData.features) {
-      for (const user of userPolygons) {
-        const intersection = turf.intersect(user, ken);
-        if (intersection) {
-          intersection.properties = {
-            Species_name: species,
-            Source: source,
-            Author: author,
-            Created: today,
-            Prefecture: ken.properties.N03_001
-          };
-          intersects.push(intersection);
-          break;
-        }
+      const intersecting = [];
+      if (baseGeojson) {
+        baseGeojson.eachLayer(layer => {
+          const baseFeature = layer.toGeoJSON();
+          inputGeojson.features.forEach(f => {
+            if (turf.intersect(baseFeature, f)) {
+              const intersected = turf.intersect(baseFeature, f);
+              intersected.properties = {
+                Species_name: species,
+                Source_info: source,
+                Author: author,
+                Date: new Date().toISOString().split('T')[0],
+                Pref_code: baseFeature.properties["N03_001"] || ""
+              };
+              intersecting.push(intersected);
+            }
+          });
+        });
       }
-    }
 
-    if (intersects.length === 0) {
-      alert("交差する地物は見つかりませんでした。");
-      return;
-    }
+      const exportGeojson = {
+        type: "FeatureCollection",
+        features: intersecting
+      };
 
-    const outGeoJSON = {
-      type: "FeatureCollection",
-      features: intersects
-    };
+      const blob = new Blob([JSON.stringify(exportGeojson)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${species}_${new Date().toISOString().split('T')[0]}.geojson`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
 
-    const fileName = `${species.replace(/\s+/g, "_")}_${today}.geojson`;
+    let georasterLayer;
 
-    const blob = new Blob([JSON.stringify(outGeoJSON, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-</script>
+    document.getElementById("geotiffUpload").addEventListener("change", async function (event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const georaster = await parseGeoraster(arrayBuffer);
+
+      if (georasterLayer) map.removeLayer(georasterLayer);
+
+      georasterLayer = new GeoRasterLayer({
+        georaster,
+        opacity: 0.7,
+        pixelValuesToColorFn: (val) => val === null ? null : `rgba(0, 0, 255, ${val / 255})`,
+      });
+
+      georasterLayer.addTo(map);
+      map.fitBounds(georasterLayer.getBounds());
+    });
+
+    document.getElementById("toggleLayer").addEventListener("change", function () {
+      if (georasterLayer) {
+        this.checked ? georasterLayer.addTo(map) : map.removeLayer(georasterLayer);
+      }
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 </body>
 </html>

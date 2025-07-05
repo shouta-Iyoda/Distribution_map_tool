@@ -8,32 +8,43 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css" />
   <style>
     body { margin: 0; font-family: sans-serif; }
-    #map { height: 90vh; }
+    #map { height: 85vh; }
     #controls {
       padding: 10px;
       background: #f0f0f0;
       border-bottom: 1px solid #ccc;
     }
-    input[type="text"] { width: 300px; }
+    input[type="text"] {
+      width: 300px;
+      margin-right: 10px;
+    }
+    label {
+      font-size: 0.9em;
+      margin-right: 5px;
+    }
   </style>
 </head>
 <body>
 
 <div id="controls">
-  種名（Species_name）:
+  <label>種名:</label>
   <input type="text" id="speciesInput" placeholder="例：Plestiodon japonicus" />
+  <label>出典:</label>
+  <input type="text" id="sourceInput" placeholder="例：Smith et al. 2021" />
+  <label>作成者:</label>
+  <input type="text" id="authorInput" placeholder="例：Shouta Iyoda" />
   <button id="extractBtn">交差抽出＆ダウンロード</button>
 </div>
 
 <div id="map"></div>
 
-<!-- 必要なライブラリ -->
+<!-- ライブラリ -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
 <script>
-  const map = L.map('map').setView([36.2048, 138.2529], 5); // 日本中心
+  const map = L.map('map').setView([36.2048, 138.2529], 5);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
@@ -61,7 +72,6 @@
 
   let kenData = null;
 
-  // GeoJSONの読み込み（同一フォルダ内にあること）
   fetch("Jap_Ken_area_filt_dissolve_0002.geojson")
     .then(res => res.json())
     .then(data => {
@@ -73,8 +83,11 @@
 
   document.getElementById('extractBtn').addEventListener('click', function () {
     const species = document.getElementById('speciesInput').value.trim();
-    if (!species) {
-      alert("種名を入力してください。");
+    const source = document.getElementById('sourceInput').value.trim();
+    const author = document.getElementById('authorInput').value.trim();
+
+    if (!species || !source || !author) {
+      alert("種名、出典、作成者のすべてを入力してください。");
       return;
     }
 
@@ -94,14 +107,20 @@
     }
 
     const intersects = [];
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     for (const ken of kenData.features) {
       for (const user of userPolygons) {
         const intersection = turf.intersect(user, ken);
         if (intersection) {
-          intersection.properties = { Species_name: species };
+          intersection.properties = {
+            Species_name: species,
+            Source: source,
+            Author: author,
+            Created: today
+          };
           intersects.push(intersection);
-          break; // 一度交差すれば十分
+          break;
         }
       }
     }
@@ -116,11 +135,13 @@
       features: intersects
     };
 
+    const fileName = `${species.replace(/\s+/g, "_")}_${today}.geojson`;
+
     const blob = new Blob([JSON.stringify(outGeoJSON, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "intersected_features.geojson";
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   });

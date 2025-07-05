@@ -9,13 +9,13 @@
   <style>
     #map { height: 90vh; width: 100%; }
     #controls { padding: 10px; }
-    input[type="text"] { margin-right: 10px; margin-top: 5px; }
+    input[type="text"] { margin-right: 10px; }
   </style>
 </head>
 <body>
   <div id="controls">
     <input type="file" id="geotiffUpload" accept=".tif,.tiff" />
-    <label><input type="checkbox" id="toggleLayer" checked> Show GeoTIFF</label><br>
+    <label><input type="checkbox" id="toggleLayer" checked> Show GeoTIFF</label>
     <input type="text" id="species" placeholder="Species Name" required>
     <input type="text" id="source" placeholder="Source Info" required>
     <input type="text" id="author" placeholder="Author" required>
@@ -23,12 +23,16 @@
   </div>
   <div id="map"></div>
 
-  <!-- ライブラリ読み込み -->
+  <!-- Leaflet + Draw -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+  <!-- GeoTIFF関連 -->
   <script src="https://unpkg.com/geotiff@1.0.0-beta.6/dist/geotiff.browser.min.js"></script>
   <script src="https://unpkg.com/georaster@1.6.2/dist/georaster.browser.min.js"></script>
   <script src="https://unpkg.com/georaster-layer-for-leaflet@3.0.0/dist/georaster-layer-for-leaflet.browser.min.js"></script>
+
+  <!-- Turf.js for geometry operations -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <script>
@@ -52,12 +56,8 @@
     new L.Control.Draw({
       edit: { featureGroup: drawnItems },
       draw: {
-        polygon: true,
-        polyline: false,
-        rectangle: false,
-        circle: false,
-        marker: false,
-        circlemarker: false
+        polygon: true, polyline: false, rectangle: false,
+        circle: false, marker: false, circlemarker: false
       }
     }).addTo(map);
 
@@ -111,15 +111,15 @@
       document.body.removeChild(a);
     });
 
+    // ========== GeoTIFF Upload ==========
     let georasterLayer;
 
     document.getElementById("geotiffUpload").addEventListener("change", async function (event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const arrayBuffer = await file.arrayBuffer();
-
       try {
+        const arrayBuffer = await file.arrayBuffer();
         const parsed = await window.georaster.parseGeoraster(arrayBuffer);
 
         if (georasterLayer) map.removeLayer(georasterLayer);
@@ -127,14 +127,13 @@
         georasterLayer = new GeoRasterLayer({
           georaster: parsed,
           opacity: 0.7,
-          pixelValuesToColorFn: val => val === null ? null : `rgba(0, 0, 255, ${val / 255})`,
+          pixelValuesToColorFn: val => val === null ? null : `rgba(0, 0, 255, ${val / 255})`
         });
 
         georasterLayer.addTo(map);
         map.fitBounds(georasterLayer.getBounds());
-
       } catch (err) {
-        console.error("GeoTIFF読み込み失敗:", err);
+        console.error("GeoTIFF error:", err);
         alert("GeoTIFFの読み込みに失敗しました。形式が正しいかご確認ください。");
       }
     });

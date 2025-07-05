@@ -113,7 +113,7 @@
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const raster = await parseGeoraster(arrayBuffer);
+        const raster = await window.georaster(arrayBuffer); 
 
         if (georasterLayer) map.removeLayer(georasterLayer);
 

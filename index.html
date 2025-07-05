@@ -11,6 +11,7 @@
     #controls { padding: 10px; }
     input[type="text"] { margin-right: 10px; }
   </style>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
 <body>
   <div id="controls">
@@ -23,7 +24,6 @@
   </div>
   <div id="map"></div>
 
-  <!-- JSライブラリ読込 -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://unpkg.com/geotiff@1.0.0-beta.6/dist/geotiff.browser.min.js"></script>
@@ -109,7 +109,7 @@
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const parsed = await parseGeoraster(arrayBuffer); // ✅ 修正済み
+        const parsed = await georaster(arrayBuffer);  // ✅ 修正済み
 
         if (georasterLayer) map.removeLayer(georasterLayer);
 
@@ -122,7 +122,7 @@
         georasterLayer.addTo(map);
         map.fitBounds(georasterLayer.getBounds());
       } catch (err) {
-        console.error("GeoTIFF読み込み失敗:", err);
+        console.error("GeoTIFF error:", err);
         alert("GeoTIFFの読み込みに失敗しました。形式が正しいかご確認ください。");
       }
     });

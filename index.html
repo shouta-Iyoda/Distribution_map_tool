@@ -15,37 +15,41 @@
       border-bottom: 1px solid #ccc;
     }
     input[type="text"] {
-      width: 300px;
+      width: 220px;
       margin-right: 10px;
+      margin-bottom: 5px;
     }
     label {
       font-size: 0.9em;
       margin-right: 5px;
+    }
+    button {
+      margin-top: 5px;
     }
   </style>
 </head>
 <body>
 
 <div id="controls">
-  <label>種名:</label>
-  <input type="text" id="speciesInput" placeholder="例：Plestiodon japonicus" />
-  <label>出典:</label>
-  <input type="text" id="sourceInput" placeholder="例：Smith et al. 2021" />
-  <label>作成者:</label>
-  <input type="text" id="authorInput" placeholder="例：Shouta Iyoda" />
+  <div>
+    <label>種名:</label>
+    <input type="text" id="speciesInput" placeholder="例：Plestiodon japonicus" />
+    <label>出典:</label>
+    <input type="text" id="sourceInput" placeholder="例：Smith et al. 2021" />
+    <label>作成者:</label>
+    <input type="text" id="authorInput" placeholder="例：Shouta Iyoda" />
+  </div>
   <button id="extractBtn">交差抽出＆ダウンロード</button>
 </div>
 
 <div id="map"></div>
 
-<!-- ライブラリ -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
 <script>
   const map = L.map('map').setView([36.2048, 138.2529], 5);
-
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
@@ -85,6 +89,7 @@
     const species = document.getElementById('speciesInput').value.trim();
     const source = document.getElementById('sourceInput').value.trim();
     const author = document.getElementById('authorInput').value.trim();
+    const today = new Date().toISOString().split('T')[0];
 
     if (!species || !source || !author) {
       alert("種名、出典、作成者のすべてを入力してください。");
@@ -107,7 +112,6 @@
     }
 
     const intersects = [];
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     for (const ken of kenData.features) {
       for (const user of userPolygons) {

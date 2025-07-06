@@ -28,7 +28,7 @@
             });
             tileLayer.addTo(map);
 
-            let geotiff_file = "./sample_geotiff.tif";
+            let geotiff_file = "./test_P_finitimus_modified.tif";
             fetch(geotiff_file)
                 .then(response => response.arrayBuffer())
                 .then(arrayBuffer => {
